@@ -1,0 +1,71 @@
+﻿@page "/"
+@using WebApp.Client
+@using WebApp.Client.Models.ApiModels
+@inject WebAppClientService apiClient
+
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-striped mb-0">
+            <thead>
+                <tr>
+                    <th>Id</th>
+                    <th>Name</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>
+                        <input @bind="addDepartmentModel.Name" class="form-control" placeholder="Name" />
+                    </td>
+                    <td>
+                        <a @onclick="AddDepartment" href="javascript:void(0)">Add</a>
+                    </td>
+                </tr>
+                @if (departments?.Any() ?? false)
+                {
+                    @foreach (var department in departments)
+                    {
+                        <DepartmentRowItemComponent DepartmentRowItem="department"
+                                           OnEdit="EditDepartment"
+                                           OnDelete="DeleteDepartment" />
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td class="text-center" colspan="3">- No Departments -</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code{
+    private List<Department>? departments;
+    private Department addDepartmentModel = new();
+
+    private async Task LoadDepartments()
+    {
+        departments = await apiClient.GetDepartments();
+    }
+
+    private async Task AddDepartment()
+    {
+        await apiClient.SaveDepartment(addDepartmentModel);
+        await LoadDepartments();
+        addDepartmentModel = new();
+    }
+
+    private async Task EditDepartment(Department department)
+    {
+        await apiClient.UpdateDepartment(department);
+        await LoadDepartments();
+    }
+
+    private async Task DeleteDepartment(int id)
+    {
+        await apiClient.DeleteDepartment(id);
+        await LoadDepartments();
+    }
+}
