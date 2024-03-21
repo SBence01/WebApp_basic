@@ -2,48 +2,70 @@
 @using WebApp.Client
 @using WebApp.Client.Models.ApiModels
 @inject WebAppClientService apiClient
+@inject MudBlazor.ISnackbar snackBar
 
-<div class="card">
-    <div class="card-body p-0">
-        <table class="table table-striped mb-0">
-            <thead>
-                <tr>
-                    <th>Id</th>
-                    <th>Name</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>
-                        <input @bind="addDepartmentModel.Name" class="form-control" placeholder="Name" />
-                    </td>
-                    <td>
-                        <a @onclick="AddDepartment" href="javascript:void(0)">Add</a>
-                    </td>
-                </tr>
-                @if (departments?.Any() ?? false)
-                {
-                    @foreach (var department in departments)
-                    {
-                        <DepartmentRowItemComponent DepartmentRowItem="department"
-                                           OnEdit="EditDepartment"
-                                           OnDelete="DeleteDepartment" />
-                    }
-                }
-                else
-                {
-                    <tr>
-                        <td class="text-center" colspan="3">- No Departments -</td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
-</div>
+<MudCard Elevation="25">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typography="TypographyStyle.Typography-6">Departments</MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+    <MudCardContent>
+        <EditForm OnValidSubmit="AddDepartment" Model="@addDepartmentModel">
+            <MudTextField @bind-Value="addDepartmentModel.Name" Label="Name of Department"></MudTextField>
+            <br />
+            <MudButton Color="Color.Info" Variant="Variant.Filled" OnClick="@(()=>AddDepartment())">Add Department</MudButton>
+        </EditForm>
+    </MudCardContent>
+</MudCard>
+<MudTable Items="@departments" Filter="@Search">
+    <ToolBarContent>
+        <MudText Typography="TypographyStyle.Typography-6">Departments</MudText>
+        <MudSpacer />
+        <MudTextField @bind-Value="searchString" Placeholder="Search For Departments"></MudTextField>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>Department Name</MudTh>
+        <MudTh>Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        @if (isEditMode && context.Id == editingDepartmentId)
+        {
+            <MudTd>
+                <input @bind="context.Name" class="form-control" />
+            </MudTd>
+        }
+        else
+        {
+            <MudTd DataLabel="Department Name">@context.Name</MudTd>
+        }
+        <MudTd DataLabel="Actions">
+            @if (isEditMode && context.Id == editingDepartmentId)
+            {
+                <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="@(()=>SaveDepartment(context))">Save</MudButton>
+                <MudButton Color="Color.Warning" Variant="Variant.Filled" OnClick="@(()=>CancelEdit())">Cancel</MudButton>
+            }
+            else
+            {
+                <MudFab OnClick="@(()=>EditDepartment(context))" Color="Color.Primary" Icon="@Icons.Material.Filled.Edit" Size="Size.Small" IconSize="Size.Small"></MudFab>
+                <MudFab OnClick="@(()=>DeleteDepartment(context.Id))" Color="Color.Secondary" Icon="@Icons.Material.Filled.Delete" Size="Size.Small" IconSize="Size.Small"></MudFab>
+            }
+        </MudTd>
+    </RowTemplate>
+</MudTable>
 
-@code{
+
+@code {
+    private string searchString = "";
     private List<Department>? departments;
     private Department addDepartmentModel = new();
+    private bool isEditMode = false;
+    private int editingDepartmentId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDepartments();
+    }
 
     private async Task LoadDepartments()
     {
@@ -52,20 +74,76 @@
 
     private async Task AddDepartment()
     {
+        if (string.IsNullOrWhiteSpace(addDepartmentModel.Name))
+        {
+            snackBar.Add("Department name cannot be empty.", Severity.Error);
+            return;
+        }
+        if (addDepartmentModel.Name.Length > 40)
+        {
+            snackBar.Add("Department name cannot be longer than 40 characters.", Severity.Error);
+            return;
+        }
+
         await apiClient.SaveDepartment(addDepartmentModel);
         await LoadDepartments();
         addDepartmentModel = new();
+        snackBar.Add("Department added successfully.", Severity.Success);
     }
+
 
     private async Task EditDepartment(Department department)
     {
+        editingDepartmentId = department.Id;
+        isEditMode = true;
+    }
+
+    private async Task SaveDepartment(Department department)
+    {
+        if (string.IsNullOrWhiteSpace(department.Name))
+        {
+            snackBar.Add("Department name cannot be empty.", Severity.Error);
+            return;
+        }
+        if (department.Name.Length > 40)
+        {
+            snackBar.Add("Department name cannot be longer than 40 characters.", Severity.Error);
+            return;
+        }
+
+        var existingDepartment = departments.FirstOrDefault(d => d.Name.Equals(department.Name, StringComparison.OrdinalIgnoreCase) && d.Id != department.Id);
+        if (existingDepartment != null)
+        {
+            snackBar.Add("A department with this name already exists.", Severity.Error);
+            return;
+        }
         await apiClient.UpdateDepartment(department);
         await LoadDepartments();
+        isEditMode = false;
+        editingDepartmentId = 0;
+        snackBar.Add("Department updated successfully.", Severity.Success);
+    }
+
+    private void CancelEdit()
+    {
+        isEditMode = false;
+        editingDepartmentId = 0;
     }
 
     private async Task DeleteDepartment(int id)
     {
         await apiClient.DeleteDepartment(id);
         await LoadDepartments();
+        snackBar.Add("Department deleted successfully.", Severity.Warning);
+    }
+
+    private bool Search(Department department)
+    {
+        if (string.IsNullOrWhiteSpace(searchString)) return true;
+        if (department.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+        return false;
     }
 }
