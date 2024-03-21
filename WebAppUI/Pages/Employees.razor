@@ -1,0 +1,158 @@
+﻿@page "/employees"
+@using WebApp.Client
+@using WebApp.Client.Models.ApiModels
+@inject WebAppClientService apiClient
+@inject MudBlazor.ISnackbar snackBar
+
+<MudCard Elevation="25">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">Employees</MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+    <MudCardContent>
+        <EditForm OnValidSubmit="AddEmployee" Model="@addEmployeeModel">
+            <MudGrid>
+                <MudItem xs="12" sm="4" md="6">
+                    <MudTextField @bind-Value="addEmployeeModel.FirstName" Label="First Name"></MudTextField>
+                </MudItem>
+                <MudItem xs="12" sm="4" md="6">
+                    <MudTextField @bind-Value="addEmployeeModel.LastName" Label="Last Name"></MudTextField>
+                </MudItem>
+                <MudItem xs="12" sm="4" md="6">
+                    <MudTextField @bind-Value="addEmployeeModel.ManNumber" Label="Man Number"></MudTextField>
+                </MudItem>
+                <MudItem xs="12" sm="4" md="6">
+                    <MudSelect T="int" Label="Select Department" @bind-Value="addEmployeeModel.DepartmentId">
+                        @foreach (var department in departments)
+                        {
+                            <MudSelectItem T="int" Value="@department.Id">@department.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+            </MudGrid>
+            <br />
+            <MudButton Type="submit" Color="Color.Info" Variant="Variant.Filled" OnClick="@(()=>AddEmployee())">Add Employee</MudButton>
+        </EditForm>
+    </MudCardContent>
+</MudCard>
+<br />
+
+<MudTable Items="@employees" Filter="@Search">
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">Employees</MudText>
+        <MudSpacer />
+        <MudTextField @bind-Value="searchString" Placeholder="Search For Employees"></MudTextField>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>First Name</MudTh>
+        <MudTh>Last Name</MudTh>
+        <MudTh>Man Number</MudTh>
+        <MudTh>Department</MudTh>
+        <MudTh>Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="First Name">@context.FirstName</MudTd>
+        <MudTd DataLabel="Last Name">@context.LastName</MudTd>
+        <MudTd DataLabel="Man Number">@context.ManNumber</MudTd>
+        <MudTd DataLabel="Department Name">@departments.FirstOrDefault(d => d.Id == context.DepartmentId)?.Name</MudTd>
+        <MudTd DataLabel="Actions">
+            <MudFab OnClick="@(()=>EditEmployee(context))" Color="Color.Primary" Icon="@Icons.Material.Filled.Edit" Size="Size.Small" IconSize="Size.Small"></MudFab>
+            <MudFab OnClick="@(()=>DeleteEmployee(context.Id))" Color="Color.Secondary" Icon="@Icons.Material.Filled.Delete" Size="Size.Small" IconSize="Size.Small"></MudFab>
+        </MudTd>
+    </RowTemplate>
+</MudTable>
+
+@code {
+    private string searchString = "";
+    private List<Employee>? employees;
+    private List<Department> departments = new List<Department>();
+    private Employee addEmployeeModel = new Employee();
+    private bool isEditMode = false;
+    private int editingEmployeeId = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        departments = await apiClient.GetDepartments();
+        employees = await apiClient.GetEmployee();
+    }
+
+    private async Task AddEmployee()
+    {
+        if (string.IsNullOrWhiteSpace(addEmployeeModel.FirstName))
+        {
+            snackBar.Add("First name cannot be empty.", Severity.Error);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(addEmployeeModel.LastName))
+        {
+            snackBar.Add("Last name cannot be empty.", Severity.Error);
+            return;
+        }
+
+        if (addEmployeeModel.ManNumber <= 0)
+        {
+            snackBar.Add("Man number cannot be empty or zero.", Severity.Error);
+            return;
+        }
+
+        if (addEmployeeModel.DepartmentId <= 0)
+        {
+            snackBar.Add("Please select a department.", Severity.Error);
+            return;
+        }
+
+        if (isEditMode)
+        {
+            await apiClient.UpdateEmployee(addEmployeeModel);
+            snackBar.Add("Employee updated successfully.", Severity.Success);
+        }
+        else
+        {
+            await apiClient.SaveEmployee(addEmployeeModel);
+            snackBar.Add("Employee added successfully.", Severity.Success);
+        }
+
+        await LoadEmployees();
+        addEmployeeModel = new Employee();
+        isEditMode = false;
+
+    }
+
+
+    private async Task LoadEmployees()
+    {
+        employees = await apiClient.GetEmployee();
+    }
+
+    private void EditEmployee(Employee employee)
+    {
+        addEmployeeModel = employee;
+        isEditMode = true;
+        editingEmployeeId = employee.Id;
+    }
+
+    private async Task DeleteEmployee(int id)
+    {
+        await apiClient.DeleteEmployee(id);
+        snackBar.Add("Employee deleted successfully.", Severity.Warning);
+        await LoadEmployees();
+    }
+
+    private bool Search(Employee employee)
+    {
+        if (string.IsNullOrWhiteSpace(searchString)) return true;
+        return employee.FirstName.Contains(searchString, StringComparison.OrdinalIgnoreCase)
+            || employee.LastName.Contains(searchString, StringComparison.OrdinalIgnoreCase)
+            || (departments?.FirstOrDefault(d => d.Id == employee.DepartmentId)?.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase) ?? false);
+    }
+
+    private void CancelEdit()
+    {
+        isEditMode = false;
+        editingEmployeeId = 0;
+        addEmployeeModel = new Employee();
+    }
+}
+
