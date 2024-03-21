@@ -57,8 +57,8 @@
         <MudTd DataLabel="Man Number">@context.ManNumber</MudTd>
         <MudTd DataLabel="Department Name">@departments.FirstOrDefault(d => d.Id == context.DepartmentId)?.Name</MudTd>
         <MudTd DataLabel="Actions">
-            <MudFab OnClick="@(()=>EditEmployee(context))" Color="Color.Primary" Icon="@Icons.Material.Filled.Edit" Size="Size.Small" IconSize="Size.Small"></MudFab>
-            <MudFab OnClick="@(()=>DeleteEmployee(context.Id))" Color="Color.Secondary" Icon="@Icons.Material.Filled.Delete" Size="Size.Small" IconSize="Size.Small"></MudFab>
+            <MudFab OnClick="@(()=>EditEmployee(context))" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Edit" Size="Size.Small" IconSize="Size.Small"></MudFab>
+            <MudFab OnClick="@(()=>DeleteEmployee(context.Id))" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Delete" Size="Size.Small" IconSize="Size.Small"></MudFab>
         </MudTd>
     </RowTemplate>
 </MudTable>
@@ -73,8 +73,8 @@
 
     protected override async Task OnInitializedAsync()
     {
-        departments = await apiClient.GetDepartments();
-        employees = await apiClient.GetEmployee();
+        departments = await apiClient.GetDepartments() ?? new List<Department>();
+        employees = await apiClient.GetEmployee() ?? new List<Employee>();
     }
 
     private async Task AddEmployee()
@@ -143,10 +143,16 @@
     private bool Search(Employee employee)
     {
         if (string.IsNullOrWhiteSpace(searchString)) return true;
-        return employee.FirstName.Contains(searchString, StringComparison.OrdinalIgnoreCase)
-            || employee.LastName.Contains(searchString, StringComparison.OrdinalIgnoreCase)
-            || (departments?.FirstOrDefault(d => d.Id == employee.DepartmentId)?.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase) ?? false);
+
+        var firstNameContains = employee.FirstName?.Contains(searchString, StringComparison.OrdinalIgnoreCase) ?? false;
+        var lastNameContains = employee.LastName?.Contains(searchString, StringComparison.OrdinalIgnoreCase) ?? false;
+        var manNumberContains = employee.ManNumber.ToString()?.Contains(searchString, StringComparison.OrdinalIgnoreCase) ?? false;
+        var departmentContains = departments?.FirstOrDefault(d => d.Id == employee.DepartmentId)?.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) ?? false;
+
+        return firstNameContains || lastNameContains || manNumberContains || departmentContains;
     }
+
+
 
     private void CancelEdit()
     {

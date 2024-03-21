@@ -47,8 +47,8 @@
             }
             else
             {
-                <MudFab OnClick="@(()=>EditDepartment(context))" Color="Color.Primary" Icon="@Icons.Material.Filled.Edit" Size="Size.Small" IconSize="Size.Small"></MudFab>
-                <MudFab OnClick="@(()=>DeleteDepartment(context.Id))" Color="Color.Secondary" Icon="@Icons.Material.Filled.Delete" Size="Size.Small" IconSize="Size.Small"></MudFab>
+                <MudFab OnClick="@(()=>EditDepartment(context))" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Edit" Size="Size.Small" IconSize="Size.Small"></MudFab>
+                <MudFab OnClick="@(()=>DeleteDepartment(context.Id))" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Delete" Size="Size.Small" IconSize="Size.Small"></MudFab>
             }
         </MudTd>
     </RowTemplate>
@@ -92,7 +92,7 @@
     }
 
 
-    private async Task EditDepartment(Department department)
+    private void EditDepartment(Department department)
     {
         editingDepartmentId = department.Id;
         isEditMode = true;
@@ -111,7 +111,7 @@
             return;
         }
 
-        var existingDepartment = departments.FirstOrDefault(d => d.Name.Equals(department.Name, StringComparison.OrdinalIgnoreCase) && d.Id != department.Id);
+        var existingDepartment = departments?.FirstOrDefault(d => d.Name != null && d.Name.Equals(department.Name, StringComparison.OrdinalIgnoreCase) && d.Id != department.Id);
         if (existingDepartment != null)
         {
             snackBar.Add("A department with this name already exists.", Severity.Error);
@@ -140,10 +140,8 @@
     private bool Search(Department department)
     {
         if (string.IsNullOrWhiteSpace(searchString)) return true;
-        if (department.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-        return false;
+        var departmentNameContains = department.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) ?? false;
+
+        return departmentNameContains;
     }
 }
